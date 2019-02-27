@@ -16,9 +16,26 @@ int histogram [MAX_ITEMS+1]; // histogram [i] == # of times list stored i items
 
 int items = 0;
 
+/* MY CODE ****************************************************************/
+spinlock_t lock;
+/* MY CODE ****************************************************************/
+
 void* producer (void* v) {
   for (int i=0; i<NUM_ITERATIONS; i++) {
     // TODO
+    /* MY CODE ****************************************************************/
+    spinlock_lock (&lock);
+    while (items >= MAX_ITEMS){
+      producer_wait_count++;
+      spinlock_unlock (&lock);
+      spinlock_lock (&lock);
+    }
+    assert(items < MAX_ITEMS);
+    items++;
+    //histogram[items]++;
+    histogram[items] = histogram[items] + 1;
+    spinlock_unlock (&lock);
+    /* MY CODE ****************************************************************/
   }
   return NULL;
 }
@@ -26,6 +43,19 @@ void* producer (void* v) {
 void* consumer (void* v) {
   for (int i=0; i<NUM_ITERATIONS; i++) {
     // TODO
+    /* MY CODE ****************************************************************/
+    spinlock_lock (&lock);
+    while (items <= 0) {
+      consumer_wait_count++;
+      spinlock_unlock (&lock);
+      spinlock_lock (&lock);
+    }
+    assert(items > 0);
+    items--;
+    //histogram[items]++;
+    histogram[items] = histogram[items] + 1;
+    spinlock_unlock (&lock);
+    /* MY CODE ****************************************************************/
   }
   return NULL;
 }
@@ -34,9 +64,21 @@ int main (int argc, char** argv) {
   uthread_t t[4];
 
   uthread_init (4);
-  
+
   // TODO: Create Threads and Join
-  
+  /* MY CODE ****************************************************************/
+  spinlock_create (&lock);
+  for (int i = 0; i<(NUM_PRODUCERS+NUM_CONSUMERS); i++){
+    if (i<NUM_PRODUCERS)
+      t[i] = uthread_create(producer, 0);
+    else
+      t[i] = uthread_create(consumer, 0);
+  }
+  for (int i = 0; i<(NUM_PRODUCERS+NUM_CONSUMERS); i++){
+    uthread_join(t[i], 0);
+  }
+  /* MY CODE ****************************************************************/
+
   printf ("producer_wait_count=%d\nconsumer_wait_count=%d\n", producer_wait_count, consumer_wait_count);
   printf ("items value histogram:\n");
   int sum=0;
