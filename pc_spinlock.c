@@ -32,7 +32,6 @@ void* producer (void* v) {
     }
     assert(items < MAX_ITEMS);
     items++;
-    //histogram[items]++;
     histogram[items] = histogram[items] + 1;
     spinlock_unlock (&lock);
     /* MY CODE ****************************************************************/
@@ -52,7 +51,6 @@ void* consumer (void* v) {
     }
     assert(items > 0);
     items--;
-    //histogram[items]++;
     histogram[items] = histogram[items] + 1;
     spinlock_unlock (&lock);
     /* MY CODE ****************************************************************/
