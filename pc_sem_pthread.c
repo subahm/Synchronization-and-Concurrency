@@ -27,7 +27,7 @@ void* producer (void* v) {
       sem_wait(&condc);
 		  sem_wait(&mutex);
     }
-    assert(items < MAX_ITEMS);
+    //assert(items < MAX_ITEMS);
 		items++;
 		histogram[items]++;
 		sem_post(&mutex);
@@ -43,7 +43,7 @@ void* consumer (void* v) {
       sem_wait(&condp);
 		  sem_wait(&mutex);
     }
-    assert(items > 0);
+    //assert(items > 0);
 		items--;
 		histogram[items]++;
 		sem_post(&mutex);

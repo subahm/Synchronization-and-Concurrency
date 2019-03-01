@@ -17,38 +17,24 @@ int histogram [MAX_ITEMS+1]; // histogram [i] == # of times list stored i items
 
 int items = 0;
 
-/* MY CODE ****************************************************************/
 pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t free_slot = PTHREAD_COND_INITIALIZER;
-pthread_cond_t full_slot = PTHREAD_COND_INITIALIZER;
-/* MY CODE ****************************************************************/
+pthread_cond_t condc = PTHREAD_COND_INITIALIZER;
+pthread_cond_t condp = PTHREAD_COND_INITIALIZER;
 
 void* producer (void* v) {
   for (int i=0; i<NUM_ITERATIONS; i++) {
     // TODO
-    /* MY CODE ****************************************************************/
     assert(0 <= items && items <= MAX_ITEMS);
-    		/* get lock */
-    		pthread_mutex_lock(&lock);
-
-    		/* check if we need to wait for consumer to consume */
-    		while(items == MAX_ITEMS){
-    			producer_wait_count++;
-    			pthread_cond_wait(&free_slot, &lock);
-    		}
-
-    		/* produce */
-    		items++;
-    		/* update histogram */
-    		histogram[items]++;
-
-    		/* signal */
-    		pthread_cond_signal(&full_slot);
-
-    		/* unlock */
-    		pthread_mutex_unlock(&lock);
-        assert(0 <= items && items <= MAX_ITEMS);
-    /* MY CODE ****************************************************************/
+    pthread_mutex_lock(&lock);
+    while(items == MAX_ITEMS){
+      producer_wait_count++;
+    	pthread_cond_wait(&condc, &lock);
+    }
+    items++;
+    histogram[items]++;
+    pthread_cond_signal(&condp);
+    pthread_mutex_unlock(&lock);
+    assert(0 <= items && items <= MAX_ITEMS);
   }
   return NULL;
 }
@@ -56,29 +42,17 @@ void* producer (void* v) {
 void* consumer (void* v) {
   for (int i=0; i<NUM_ITERATIONS; i++) {
     // TODO
-    /* MY CODE ****************************************************************/
     assert(0 <= items && items <= MAX_ITEMS);
-
-		/* get lock */
 		pthread_mutex_lock(&lock);
-
-		/* check if we need to wait for producer to produce */
 		while(items == 0){
 			consumer_wait_count++;
-			pthread_cond_wait(&full_slot, &lock);
+			pthread_cond_wait(&condp, &lock);
 		}
-
-		/* consume */
 		items--;
-		/* update histogram */
 		histogram[items]++;
-
-		/* signal */
-		pthread_cond_signal(&free_slot);
-		/* unlock */
+		pthread_cond_signal(&condc);
 		pthread_mutex_unlock(&lock);
     assert(0 <= items && items <= MAX_ITEMS);
-    /* MY CODE ****************************************************************/
   }
   return NULL;
 }
@@ -86,19 +60,16 @@ void* consumer (void* v) {
 int main (int argc, char** argv) {
 
   // TODO: Create Threads and Join
-  /* MY CODE ****************************************************************/
-  /* storage for threads */
-  pthread_t t2[NUM_CONSUMERS + NUM_PRODUCERS];
-  /* create threads */
-  pthread_create(&t2[0], NULL, &consumer, NULL);
-  pthread_create(&t2[1], NULL, &consumer, NULL);
-  pthread_create(&t2[2], NULL, &producer, NULL);
-  pthread_create(&t2[3], NULL, &producer, NULL);
-  /* join threads */
+  pthread_t t[NUM_CONSUMERS + NUM_PRODUCERS];
+  pthread_create(&t[0], NULL, &consumer, NULL);
+  pthread_create(&t[1], NULL, &consumer, NULL);
+  pthread_create(&t[2], NULL, &producer, NULL);
+  pthread_create(&t[3], NULL, &producer, NULL);
+
   for(int i = 0;i < (NUM_CONSUMERS + NUM_PRODUCERS);i++){
-  	pthread_join(t2[i], NULL);
+  	pthread_join(t[i], NULL);
   }
-  /* MY CODE ****************************************************************/
+
   printf ("producer_wait_count=%d\nconsumer_wait_count=%d\n", producer_wait_count, consumer_wait_count);
   printf ("items value histogram:\n");
   int sum=0;
@@ -106,5 +77,5 @@ int main (int argc, char** argv) {
     printf ("  items=%d, %d times\n", i, histogram [i]);
     sum += histogram [i];
   }
-  assert (sum == sizeof (t2) / sizeof (pthread_t) * NUM_ITERATIONS);
+  assert (sum == sizeof (t) / sizeof (pthread_t) * NUM_ITERATIONS);
 }

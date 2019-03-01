@@ -12,8 +12,6 @@ const int NUM_PRODUCERS  = 2;
 int histogram [MAX_ITEMS+1]; // histogram [i] == # of times list stored i items
 
 int items = 0;
-int producer_wait_count;     // # of times producer had to wait
-int consumer_wait_count;     // # of times consumer had to wait
 uthread_sem_t condc, condp, mutex;
 
 void* producer (void* v) {
@@ -23,7 +21,7 @@ void* producer (void* v) {
       uthread_sem_wait(condc);
 	    uthread_sem_wait(mutex);
     }
-    assert(items < MAX_ITEMS);
+    //assert(items < MAX_ITEMS);
 	  items++;
 	  histogram[items]++;
 	  uthread_sem_signal(mutex);
@@ -39,7 +37,7 @@ void* consumer (void* v) {
       uthread_sem_wait(condp);
       uthread_sem_wait(mutex);
     }
-    assert(items > 0);
+    //assert(items > 0);
     items--;
     histogram[items]++;
     uthread_sem_signal(mutex);

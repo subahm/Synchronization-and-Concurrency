@@ -65,47 +65,36 @@ void* agent (void* av) {
       signal_count [matching_smoker [r]] ++;
       int c = choices [r];
       if (c & MATCH) {
-        VERBOSE_PRINT ("match available\n");
         uthread_cond_signal (a->match);
       }
       if (c & PAPER) {
-        VERBOSE_PRINT ("paper available\n");
         uthread_cond_signal (a->paper);
       }
       if (c & TOBACCO) {
-        VERBOSE_PRINT ("tobacco available\n");
         uthread_cond_signal (a->tobacco);
       }
-      VERBOSE_PRINT ("agent is waiting for smoker to smoke\n");
       uthread_cond_wait (a->smoke);
     }
   uthread_mutex_unlock (a->mutex);
   return NULL;
 }
 
-/* MY CODE ****************************************************************/
 int sum = 0;
 uthread_cond_t match_and_paper;
 uthread_cond_t paper_and_tobacco;
 uthread_cond_t match_and_tobacco;
 
-void try_wake_up_smoker(int s){
+void start_smoker(int s){
   switch(s){
     case MATCH + PAPER :
-      // wake up tabacco smoker
-      VERBOSE_PRINT ("Wake up Tobacco smoker.\n");
       uthread_cond_signal(match_and_paper);
       sum = 0;
       break;
     case PAPER + TOBACCO:
-      // wake up match smoker
-      VERBOSE_PRINT ("Wake up Match smoker.\n");
       uthread_cond_signal(paper_and_tobacco);
       sum = 0;
       break;
     case MATCH + TOBACCO:
-      // wake up paper smoker
-      VERBOSE_PRINT ("Wake up Paper smoker.\n");
       uthread_cond_signal(match_and_tobacco);
       sum = 0;
       break;
@@ -115,15 +104,13 @@ void try_wake_up_smoker(int s){
   }
 }
 
-// =================  listener fn =====================
-
 void* tobacco_listener (void* av){
   struct Agent* a = av;
   uthread_mutex_lock(a->mutex); // must request acquiring mutex outside while loop
   while(1){
     uthread_cond_wait(a->tobacco);
     sum = sum + TOBACCO;
-    try_wake_up_smoker(sum);
+    start_smoker(sum);
   }
   uthread_mutex_unlock(a->mutex);
 }
@@ -134,7 +121,7 @@ void* paper_listener (void* av){
   while(1){
     uthread_cond_wait(a->paper);
     sum = sum + PAPER;
-    try_wake_up_smoker(sum);
+    start_smoker(sum);
   }
   uthread_mutex_unlock(a->mutex);
 }
@@ -145,12 +132,10 @@ void* match_listener (void* av){
   while(1){
     uthread_cond_wait(a->match);
     sum = sum + MATCH;
-    try_wake_up_smoker(sum);
+    start_smoker(sum);
   }
   uthread_mutex_unlock(a->mutex);
 }
-
-// =================  smoker fn =====================
 
 void* tabacco_smoker (void* av){
   struct Agent* a = av;
@@ -188,13 +173,10 @@ void* paper_smoker (void* av){
   uthread_mutex_unlock(a->mutex);
 }
 
-/* MY CODE ****************************************************************/
-
 int main (int argc, char** argv) {
   uthread_init (7);
   struct Agent*  a = createAgent();
   // TODO
-  /* MY CODE ****************************************************************/
   match_and_paper = uthread_cond_create(a->mutex);
   paper_and_tobacco = uthread_cond_create(a->mutex);
   match_and_tobacco = uthread_cond_create(a->mutex);
@@ -204,7 +186,6 @@ int main (int argc, char** argv) {
   uthread_create (tabacco_smoker, a);
   uthread_create (match_smoker, a);
   uthread_create (paper_smoker, a);
-  /* MY CODE ****************************************************************/
 
   uthread_join (uthread_create (agent, a), 0);
   assert (signal_count [MATCH]   == smoke_count [MATCH]);

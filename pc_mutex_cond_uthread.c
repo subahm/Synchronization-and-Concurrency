@@ -15,16 +15,13 @@ int consumer_wait_count;     // # of times consumer had to wait
 int histogram [MAX_ITEMS+1]; // histogram [i] == # of times list stored i items
 
 int items = 0;
-/* MY CODE ****************************************************************/
-uthread_mutex_t mx;
+uthread_mutex_t mutex;
 uthread_cond_t condc,condp;
-/* MY CODE ****************************************************************/
 
 void* producer (void* v) {
   for (int i=0; i<NUM_ITERATIONS; i++) {
     // TODO
-    /* MY CODE ****************************************************************/
-    uthread_mutex_lock(mx);
+    uthread_mutex_lock(mutex);
     while (items == MAX_ITEMS){
       producer_wait_count++;
       uthread_cond_wait(condc);
@@ -32,8 +29,7 @@ void* producer (void* v) {
     items++;
     histogram[items]++;
     uthread_cond_signal(condp);
-    uthread_mutex_unlock(mx);
-    /* MY CODE ****************************************************************/
+    uthread_mutex_unlock(mutex);
   }
   return NULL;
 }
@@ -41,8 +37,7 @@ void* producer (void* v) {
 void* consumer (void* v) {
   for (int i=0; i<NUM_ITERATIONS; i++) {
     // TODO
-    /* MY CODE ****************************************************************/
-    uthread_mutex_lock(mx);
+    uthread_mutex_lock(mutex);
     while (items == 0) {
       consumer_wait_count++;
       uthread_cond_wait(condp);
@@ -50,22 +45,18 @@ void* consumer (void* v) {
     items--;
     histogram[items]++;
     uthread_cond_signal(condc);
-    uthread_mutex_unlock(mx);
-    /* MY CODE ****************************************************************/
+    uthread_mutex_unlock(mutex);
   }
   return NULL;
 }
 
 int main (int argc, char** argv) {
   uthread_t t[4];
-
   uthread_init (4);
-
   // TODO: Create Threads and Join
-  /* MY CODE ****************************************************************/
-  mx = uthread_mutex_create();
-  condc = uthread_cond_create(mx);
-  condp = uthread_cond_create(mx);
+  mutex = uthread_mutex_create();
+  condc = uthread_cond_create(mutex);
+  condp = uthread_cond_create(mutex);
   for (int i = 0; i<(NUM_PRODUCERS+NUM_CONSUMERS); i++){
     if (i<NUM_PRODUCERS)
       t[i] = uthread_create(producer, 0);
@@ -75,7 +66,6 @@ int main (int argc, char** argv) {
   for (int i = 0; i<(NUM_PRODUCERS+NUM_CONSUMERS); i++){
     uthread_join(t[i], 0);
   }
-  /* MY CODE ****************************************************************/
 
   printf ("producer_wait_count=%d\nconsumer_wait_count=%d\n", producer_wait_count, consumer_wait_count);
   printf ("items value histogram:\n");

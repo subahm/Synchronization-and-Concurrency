@@ -70,41 +70,31 @@ void* agent (void* av) {
       signal_count [matching_smoker [r]] ++;
       int c = choices [r];
       if (c & MATCH) {
-        VERBOSE_PRINT ("match available\n");
         pthread_cond_signal (&a->match);
       }
       if (c & PAPER) {
-        VERBOSE_PRINT ("paper available\n");
         pthread_cond_signal (&a->paper);
       }
       if (c & TOBACCO) {
-        VERBOSE_PRINT ("tobacco available\n");
         pthread_cond_signal (&a->tobacco);
       }
-      VERBOSE_PRINT ("agent is waiting for smoker to smoke\n");
       pthread_cond_wait (&a->smoke, &a->mutex);
     }
   pthread_mutex_unlock (&a->mutex);
   return NULL;
 }
 
-void try_wake_up_smoker(int s){
+void start_smoker(int s){
   switch(s){
     case MATCH + PAPER :
-      // wake up tabacco smoker
-      VERBOSE_PRINT ("Wake up Tobacco smoker.\n");
       pthread_cond_signal(&match_and_paper);
       sum = 0;
       break;
     case PAPER + TOBACCO:
-      // wake up match smoker
-      VERBOSE_PRINT ("Wake up Match smoker.\n");
       pthread_cond_signal(&paper_and_tobacco);
       sum = 0;
       break;
     case MATCH + TOBACCO:
-      // wake up paper smoker
-      VERBOSE_PRINT ("Wake up Paper smoker.\n");
       pthread_cond_signal(&match_and_tobacco);
       sum = 0;
       break;
@@ -114,118 +104,105 @@ void try_wake_up_smoker(int s){
   }
 }
 
-void* match_watcher_t (void* av) {
-	struct Agent* v = av;
-	//try to lock mutex
-	pthread_mutex_lock(&v->mutex);
-	//poll for Agent to give a match
-	for(;;) {
-		pthread_cond_wait(&v->match, &v->mutex);
+void* match_smoker (void* av) {
+	struct Agent* a = av;
+	pthread_mutex_lock(&a->mutex);
+	while(1) {
+		pthread_cond_wait(&a->match, &a->mutex);
     sum = sum + MATCH;
-    try_wake_up_smoker(sum);
+    start_smoker(sum);
 	}
-	//unlock mutex
-	pthread_mutex_unlock(&v->mutex);
+	pthread_mutex_unlock(&a->mutex);
 	return NULL;
 }
 
-void* paper_watcher_t (void* av) {
-	struct Agent* v = av;
-	//try to lock mutex
-	pthread_mutex_lock(&v->mutex);
-	//poll for Agent to give paper
-	for(;;) {
-		pthread_cond_wait(&v->paper, &v->mutex);
+void* paper_smoker (void* av) {
+	struct Agent* a = av;
+	pthread_mutex_lock(&a->mutex);
+	while(1) {
+		pthread_cond_wait(&a->paper, &a->mutex);
     sum = sum + PAPER;
-    try_wake_up_smoker(sum);
+    start_smoker(sum);
 	}
-	//unlock mutex
-	pthread_mutex_unlock(&v->mutex);
+	pthread_mutex_unlock(&a->mutex);
 	return NULL;
 }
 
-void* tobacco_watcher_t (void* av) {
-	struct Agent* v = av;
-	//try to lock mutex
-	pthread_mutex_lock(&v->mutex);
-	//poll for Agent to give tobacco
-	for(;;) {
-		pthread_cond_wait(&v->tobacco, &v->mutex);
+void* tobacco_smoker (void* av) {
+	struct Agent* a = av;
+	pthread_mutex_lock(&a->mutex);
+	while(1) {
+		pthread_cond_wait(&a->tobacco, &a->mutex);
     sum = sum + TOBACCO;
-    try_wake_up_smoker(sum);
+    start_smoker(sum);
 	}
-	//unlock mutex
-	pthread_mutex_unlock(&v->mutex);
+	pthread_mutex_unlock(&a->mutex);
 	return NULL;
 }
 
-/*-------------------------- Smokers -----------------------------*/
 
-void* match_t (void* av) {
-	struct Agent* v = av;
-	pthread_mutex_lock(&v->mutex);
-	for(;;) {
-		pthread_cond_wait(&paper_and_tobacco, &v->mutex);
-		pthread_cond_signal(&v->smoke);
+void* match_listener (void* av) {
+	struct Agent* a = av;
+	pthread_mutex_lock(&a->mutex);
+	while(1) {
+		pthread_cond_wait(&paper_and_tobacco, &a->mutex);
+		pthread_cond_signal(&a->smoke);
 		smoke_count [MATCH]++;
 	}
-	pthread_mutex_unlock(&v->mutex);
+	pthread_mutex_unlock(&a->mutex);
 	return NULL;
 }
 
-void* paper_t (void* av) {
-	struct Agent* v = av;
-	pthread_mutex_lock(&v->mutex);
-	for(;;) {
-		pthread_cond_wait(&match_and_tobacco, &v->mutex);
-		pthread_cond_signal(&v->smoke);
+void* paper_listener (void* av) {
+	struct Agent* a = av;
+	pthread_mutex_lock(&a->mutex);
+	while(1) {
+		pthread_cond_wait(&match_and_tobacco, &a->mutex);
+		pthread_cond_signal(&a->smoke);
 		smoke_count [PAPER]++;
 	}
-	pthread_mutex_unlock(&v->mutex);
+	pthread_mutex_unlock(&a->mutex);
 	return NULL;
 }
 
-void* wacki_tobacci_t (void* av) {
-	struct Agent* v = av;
-	pthread_mutex_lock(&v->mutex);
-	for(;;) {
-		pthread_cond_wait(&match_and_paper, &v->mutex);
-		pthread_cond_signal(&v->smoke);
+void* tobacco_listener (void* av) {
+	struct Agent* a = av;
+	pthread_mutex_lock(&a->mutex);
+	while(1) {
+		pthread_cond_wait(&match_and_paper, &a->mutex);
+		pthread_cond_signal(&a->smoke);
 		smoke_count [TOBACCO]++;
 	}
-	pthread_mutex_unlock(&v->mutex);
+	pthread_mutex_unlock(&a->mutex);
 	return NULL;
 }
 
 int main (int argc, char** argv) {
-  //declare pthreads
   pthread_t match;
   pthread_t paper;
   pthread_t tobacco;
-  pthread_t match_watcher;
-  pthread_t paper_watcher;
-  pthread_t tobacco_watcher;
+  pthread_t match_var;
+  pthread_t paper_var;
+  pthread_t tobacco_var;
   pthread_t agent_var;
 
   struct Agent*  a = createAgent();
 
-  //initialize condition variables
-    pthread_cond_init(&match_and_paper, NULL);
-    pthread_cond_init(&match_and_tobacco, NULL);
-    pthread_cond_init(&paper_and_tobacco, NULL);
+  pthread_cond_init(&match_and_paper, NULL);
+  pthread_cond_init(&match_and_tobacco, NULL);
+  pthread_cond_init(&paper_and_tobacco, NULL);
 
-    //create threads
-    pthread_create(&match, NULL, match_t, a);
-    pthread_create(&paper, NULL, paper_t, a);
-    pthread_create(&tobacco, NULL, wacki_tobacci_t, a);
+  pthread_create(&match, NULL, match_listener, a);
+  pthread_create(&paper, NULL, paper_listener, a);
+  pthread_create(&tobacco, NULL, tobacco_listener, a);
 
-    pthread_create(&match_watcher, NULL, match_watcher_t, a);
-    pthread_create(&paper_watcher, NULL, paper_watcher_t, a);
-    pthread_create(&tobacco_watcher, NULL, tobacco_watcher_t, a);
+  pthread_create(&match_var, NULL, match_smoker, a);
+  pthread_create(&paper_var, NULL, paper_smoker, a);
+  pthread_create(&tobacco_var, NULL, tobacco_smoker, a);
 
-    pthread_create(&agent_var, NULL, agent, a);
+  pthread_create(&agent_var, NULL, agent, a);
 
-    pthread_join (agent_var, NULL);
+  pthread_join (agent_var, NULL);
 
   assert (signal_count [MATCH]   == smoke_count [MATCH]);
   assert (signal_count [PAPER]   == smoke_count [PAPER]);
