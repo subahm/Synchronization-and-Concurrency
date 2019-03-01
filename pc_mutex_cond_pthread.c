@@ -47,6 +47,7 @@ void* producer (void* v) {
 
     		/* unlock */
     		pthread_mutex_unlock(&lock);
+        assert(0 <= items && items <= MAX_ITEMS);
     /* MY CODE ****************************************************************/
   }
   return NULL;
@@ -76,6 +77,7 @@ void* consumer (void* v) {
 		pthread_cond_signal(&free_slot);
 		/* unlock */
 		pthread_mutex_unlock(&lock);
+    assert(0 <= items && items <= MAX_ITEMS);
     /* MY CODE ****************************************************************/
   }
   return NULL;
